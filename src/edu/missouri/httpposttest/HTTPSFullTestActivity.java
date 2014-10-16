@@ -24,35 +24,37 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-public class HTTPTestActivity extends Activity {
+public class HTTPSFullTestActivity extends Activity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_http_test);
+		setContentView(R.layout.activity_https_full_test);
 
 		if (savedInstanceState == null) {
-			getFragmentManager().beginTransaction().add(R.id.container, new PlaceholderFragment()).commit();
+			getFragmentManager().beginTransaction()
+					.add(R.id.container, new PlaceholderFragment())
+					.commit();
 		}
-
-	}
-
-	public void httpPost(View view) {
-		TestFileReader tfr = new TestFileReader();
-		TransmitData transDataThread = new TransmitData();
-		// transDataThread.execute(Utilities.SMALL_FILENAME,
-		// tfr.rtnString(Utilities.SMALL_PATH));
-		// transDataThread.execute(Utilities.LARGE_FILENAME,
-		// tfr.rtnString(Utilities.LARGE_PATH));
-		transDataThread.execute(Utilities.XL_FILENAME, tfr.rtnString(Utilities.XL_PATH));
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.httptest, menu);
+		getMenuInflater().inflate(R.menu.httpsfull_test, menu);
 		return true;
+	}
+
+	public void httpsPostFull(View view) {
+		TestFileReader tfr = new TestFileReader();
+		TransmitData transDataThread = new TransmitData();
+		// TransmitData2 transDataThread = new TransmitData2();
+		// transDataThread.execute(Utilities.SMALL_FILENAME,
+		// tfr.rtnString(Utilities.SMALL_PATH));
+		// transDataThread.execute(Utilities.LARGE_FILENAME,
+		// tfr.rtnString(Utilities.LARGE_PATH));
+		transDataThread.execute(Utilities.XL_FILENAME, tfr.rtnString(Utilities.XL_PATH));
 	}
 
 	@Override
@@ -78,7 +80,7 @@ public class HTTPTestActivity extends Activity {
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container,
 				Bundle savedInstanceState) {
-			View rootView = inflater.inflate(R.layout.fragment_http_test, container, false);
+			View rootView = inflater.inflate(R.layout.fragment_https_full_test, container, false);
 			return rootView;
 		}
 	}
@@ -87,8 +89,8 @@ public class HTTPTestActivity extends Activity {
 
 		@Override
 		protected void onPostExecute(Long result) {
-			TextView tvHttp = (TextView) findViewById(R.id.tvHttp);
-			tvHttp.setText("Round Time: " + String.valueOf(result));
+			TextView tvHttpsFull = (TextView) findViewById(R.id.tvHttpsFull);
+			tvHttpsFull.setText("Round Time: " + String.valueOf(result));
 		}
 
 		@Override
@@ -97,29 +99,30 @@ public class HTTPTestActivity extends Activity {
 			String fileName = strings[0];
 			String dataToSend = strings[1];
 
-			HttpPost request = new HttpPost(Utilities.HTTP_ADDRESS);
+			DefaultHttpClient client = (DefaultHttpClient) WebClientDevWrapper.getSpecialKeyStoreClient(getApplicationContext());
+			// DefaultHttpClient client = (DefaultHttpClient)
+			// WebClientDevWrapper.getHttpsClient();
+
+			HttpPost request = new HttpPost(Utilities.HTTPS_ADDRESS);
 			List<NameValuePair> params = new ArrayList<NameValuePair>();
 			params.add(new BasicNameValuePair("file_name", fileName));
 			params.add(new BasicNameValuePair("data", dataToSend));
 			try {
 				long t1 = Calendar.getInstance().getTimeInMillis();
-				request.setEntity(new UrlEncodedFormEntity(params,HTTP.UTF_8));
-				HttpResponse response = new DefaultHttpClient().execute(request);
+				request.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
+				// HttpResponse response = new
+				// DefaultHttpClient().execute(request);
+				HttpResponse response = client.execute(request);
 				// String result = EntityUtils.toString(response.getEntity());
-				Log.d(Utilities.TAG_HTTP, String.valueOf(response.getStatusLine().getStatusCode()));
+				Log.d(Utilities.TAG_HTTPS_FULL, String.valueOf(response.getStatusLine().getStatusCode()));
 				long t2 = Calendar.getInstance().getTimeInMillis();
-				Log.d(Utilities.TAG_HTTP, "Round Time: " + (t2 - t1));
-				// if (response.getStatusLine().getStatusCode() == 200) {
-				// String result = EntityUtils.toString(response.getEntity());
-//					Log.d(Utilities.TAG_HTTP, result);
-				// }
+				Log.d(Utilities.TAG_HTTPS_FULL, "Round Time: " + (t2 - t1));
 				return t2 - t1;
 			} catch (Exception e) {
 				e.printStackTrace();
 				return (long) -1;
 			}
 		}
-
 	}
 
 }

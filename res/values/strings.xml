@@ -7,8 +7,10 @@
     <string name="http_https">Http Vs Https</string>
     <string name="http">Http</string>
     <string name="https">Https</string>
+    <string name="httpsFull">Https_Full</string>
     <string name="title_activity_http_test">HttpTestActivity</string>
     <string name="title_activity_httpstest">HTTPSTestActivity</string>
     <string name="title_activity_httptest">HTTPTestActivity</string>
+    <string name="title_activity_httpsfull_test">HTTPSFullTestActivity</string>
 
 </resources>

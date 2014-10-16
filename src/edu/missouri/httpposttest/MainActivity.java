@@ -36,6 +36,11 @@ public class MainActivity extends Activity {
 		startActivity(i);
 	}
 
+	public void redirectToFullHttps(View view) {
+		Intent i = new Intent(getApplicationContext(), HTTPSFullTestActivity.class);
+		startActivity(i);
+	}
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 

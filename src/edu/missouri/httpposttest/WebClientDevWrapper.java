@@ -16,6 +16,8 @@ import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.HTTP;
 
+import android.content.Context;
+
 public class WebClientDevWrapper {
 	 public static HttpClient getNewHttpClient() {
          try {
@@ -41,4 +43,50 @@ public class WebClientDevWrapper {
              return new DefaultHttpClient();
          }
      }
+
+	// ----------------------------------------------------------------------------------------------
+	public static HttpClient getHttpsClient() {
+		BasicHttpParams params = new BasicHttpParams();
+		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+		HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+		HttpProtocolParams.setUseExpectContinue(params, true);
+
+		SchemeRegistry schReg = new SchemeRegistry();
+		schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		schReg.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+
+		ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);
+
+		return new DefaultHttpClient(connMgr, params);
+	}
+
+	public static HttpClient getCustomClient() {
+		BasicHttpParams params = new BasicHttpParams();
+		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+		HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+		HttpProtocolParams.setUseExpectContinue(params, true);
+
+		SchemeRegistry schReg = new SchemeRegistry();
+		schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		schReg.register(new Scheme("https", MySSLSocketFactory.getSocketFactory(), 443));
+
+		ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);
+
+		return new DefaultHttpClient(connMgr, params);
+	}
+
+	public static HttpClient getSpecialKeyStoreClient(Context context) {
+		BasicHttpParams params = new BasicHttpParams();
+		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+		HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+		HttpProtocolParams.setUseExpectContinue(params, true);
+
+		SchemeRegistry schReg = new SchemeRegistry();
+		schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		schReg.register(new Scheme("https", CustomerSocketFactory.getSocketFactory(context), 443));
+
+		ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);
+
+		return new DefaultHttpClient(connMgr, params);
+	}
 }

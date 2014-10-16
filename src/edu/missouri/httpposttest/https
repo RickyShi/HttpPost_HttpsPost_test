@@ -1,0 +1,434 @@
+HTTPS原理
+HTTPS(Hyper Text Transfer Protocol Secure)，是一种基于SSL/TLS的HTTP，所有的HTTP数据都是在SSL/TLS协议封装之上进行传输的。HTTPS协议是在HTTP协议的基础上，添加了SSL/TLS握手以及数据加密传输，也属于应用层协议。所以，研究HTTPS协议原理，最终就是研究SSL/TLS协议。
+SSL/TLS协议作用
+不使用SSL/TLS的HTTP通信，就是不加密的通信，所有的信息明文传播，带来了三大风险：
+1. 窃听风险：第三方可以获知通信内容。
+2. 篡改风险：第三方可以修改通知内容。
+3. 冒充风险：第三方可以冒充他人身份参与通信。
+SSL/TLS协议是为了解决这三大风险而设计的，希望达到：
+1. 所有信息都是加密传输，第三方无法窃听。
+2. 具有校验机制，一旦被篡改，通信双方都会立刻发现。
+3. 配备身份证书，防止身份被冒充。
+基本的运行过程
+SSL/TLS协议的基本思路是采用公钥加密法，也就是说，客户端先向服务器端索要公钥，然后用公钥加密信息，服务器收到密文后，用自己的私钥解密。但是这里需要了解两个问题的解决方案。
+1. 如何保证公钥不被篡改？
+解决方法：将公钥放在数字证书中。只要证书是可信的，公钥就是可信的。
+2. 公钥加密计算量太大，如何减少耗用的时间？
+解决方法：每一次对话(session)，客户端和服务器端都生成一个“对话密钥”(session key)，用它来加密信息。由于“对话密钥”是对称加密，所以运算速度非常快，而服务器公钥只用于加密“对话密钥”本身，这样就减少了加密运算的消耗时间。
+因此，SSL/TLS协议的基本过程是这样的：
+1. 客户端向服务器端索要并验证公钥。
+2. 双方协商生成“对话密钥”。
+3. 双方采用“对话密钥”进行加密通信。
+上面过程的前两布，又称为“握手阶段”。
+握手阶段的详细过程
+
+“握手阶段”涉及四次通信，需要注意的是，“握手阶段”的所有通信都是明文的。
+客户端发出请求（ClientHello）
+首先，客户端（通常是浏览器）先向服务器发出加密通信的请求，这被叫做ClientHello请求。在这一步中，客户端主要向服务器提供以下信息：
+1. 支持的协议版本，比如TLS 1.0版
+2. 一个客户端生成的随机数，稍后用于生成“对话密钥”。
+3. 支持的加密方法，比如RSA公钥加密。
+4. 支持的压缩方法。
+这里需要注意的是，客户端发送的信息之中不包括服务器的域名。也就是说，理论上服务器只能包含一个网站，否则会分不清应用向客户端提供哪一个网站的数字证书。这就是为什么通常一台服务器只能有一张数字证书的原因。
+服务器回应（ServerHello）
+服务器收到客户端请求后，向客户端发出回应，这叫做ServerHello。服务器的回应包含以下内容：
+1. 确认使用的加密通信协议版本，比如TLS 1.0版本。如果浏览器与服务器支持的版本不一致，服务器关闭加密通信。
+2. 一个服务器生成的随机数，稍后用于生成“对话密钥”。
+3. 确认使用的加密方法，比如RSA公钥加密。
+4. 服务器证书。
+除了上面这些信息，如果服务器需要确认客户端的身份，就会再包含一项请求，要求客户端提供“客户端证书”。比如，金融机构往往只允许认证客户连入自己的网络，就会向正式客户提供USB密钥，里面就包含了一张客户端证书。
+客户端回应
+客户端收到服务器回应以后，首先验证服务器证书。如果证书不是可信机构颁发，或者证书中的域名与实际域名不一致，或者证书已经过期，就会向访问者显示一个警告，由其选择是否还要继续通信。
+如果证书没有问题，客户端就会从证书中取出服务器的公钥。然后，向服务器发送下面三项消息。
+1. 一个随机数。该随机数用服务器公钥加密，防止被窃听。
+2. 编码改变通知，表示随后的信息都将用双方商定的加密方法和密钥发送。
+3. 客户端握手结束通知，表示客户端的握手阶段已经结束。这一项通常也是前面发送的所有内容的hash值，用来供服务器校验。
+上面第一项随机数，是整个握手阶段出现的第三个随机数，又称“pre-master key”。有了它以后，客户端和服务器就同时有了三个随机数，接着双方就用事先商定的加密方法，各自生成本次会话所用的同一把“会话密钥”。
+服务器的最后回应
+服务器收到客户端的第三个随机数pre-master key之后，计算生成本次会话所用的“会话密钥”。然后，向客户端最后发送下面信息。
+1. 编码改变通知，表示随后的信息都将用双方商定的加密方法和密钥发送。
+2. 服务器握手结束通知，表示服务器的握手阶段已经结束。这一项同时也是前面发生的所有内容的hash值，用来供客户端校验。
+握手结束
+至此，整个握手阶段全部结束。接下来，客户端与服务器进入加密通信，就完全是使用普通的HTTP协议，只不过用“会话密钥”加密内容。
+
+服务器基于Nginx搭建HTTPS虚拟站点
+之前一篇文章详细介绍了在服务器端如何生成SSL证书，并基于Nginx搭建HTTPS服务器，链接：Nginx搭建HTTPS服务器
+
+Android实现HTTPS通信
+由于各种原因吧，这里使用HttpClicent类讲解一下Android如何建立HTTPS连接。代码demo如下。
+MainActivity.java
+[java] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+package com.example.photocrop;  
+  
+import java.io.BufferedReader;  
+import java.io.InputStreamReader;  
+  
+import org.apache.http.HttpResponse;  
+import org.apache.http.HttpStatus;  
+import org.apache.http.StatusLine;  
+import org.apache.http.client.HttpClient;  
+import org.apache.http.client.methods.HttpPost;  
+import org.apache.http.client.methods.HttpUriRequest;  
+  
+import android.app.Activity;  
+import android.os.AsyncTask;  
+import android.os.Bundle;  
+import android.os.AsyncTask.Status;  
+import android.text.TextUtils;  
+import android.util.Log;  
+import android.view.View;  
+import android.widget.Button;  
+import android.widget.TextView;  
+  
+public class MainActivity extends Activity {  
+    private Button httpsButton;  
+    private TextView conTextView;  
+  
+    private CreateHttpsConnTask httpsTask;  
+  
+    @Override  
+    protected void onCreate(Bundle savedInstanceState) {  
+        super.onCreate(savedInstanceState);  
+        setContentView(R.layout.activity_main);  
+  
+        httpsButton = (Button) findViewById(R.id.create_https_button);  
+        httpsButton.setOnClickListener(new View.OnClickListener() {  
+  
+            @Override  
+            public void onClick(View v) {  
+                runHttpsConnection();  
+            }  
+        });  
+  
+        conTextView = (TextView) findViewById(R.id.content_textview);  
+        conTextView.setText("初始为空");  
+    }  
+  
+    private void runHttpsConnection() {  
+        if (httpsTask == null || httpsTask.getStatus() == Status.FINISHED) {  
+            httpsTask = new CreateHttpsConnTask();  
+            httpsTask.execute();  
+        }  
+    }  
+  
+    private class CreateHttpsConnTask extends AsyncTask<Void, Void, Void> {  
+        private static final String HTTPS_EXAMPLE_URL = "自定义";  
+        private StringBuffer sBuffer = new StringBuffer();  
+  
+        @Override  
+        protected Void doInBackground(Void... params) {  
+            HttpUriRequest request = new HttpPost(HTTPS_EXAMPLE_URL);  
+            HttpClient httpClient = HttpUtils.getHttpsClient();  
+            try {  
+                HttpResponse httpResponse = httpClient.execute(request);  
+                if (httpResponse != null) {  
+                    StatusLine statusLine = httpResponse.getStatusLine();  
+                    if (statusLine != null  
+                            && statusLine.getStatusCode() == HttpStatus.SC_OK) {  
+                        BufferedReader reader = null;  
+                        try {  
+                            reader = new BufferedReader(new InputStreamReader(  
+                                    httpResponse.getEntity().getContent(),  
+                                    "UTF-8"));  
+                            String line = null;  
+                            while ((line = reader.readLine()) != null) {  
+                                sBuffer.append(line);  
+                            }  
+  
+                        } catch (Exception e) {  
+                            Log.e("https", e.getMessage());  
+                        } finally {  
+                            if (reader != null) {  
+                                reader.close();  
+                                reader = null;  
+                            }  
+                        }  
+                    }  
+                }  
+  
+            } catch (Exception e) {  
+                Log.e("https", e.getMessage());  
+            } finally {  
+  
+            }  
+  
+            return null;  
+        }  
+  
+        @Override  
+        protected void onPostExecute(Void result) {  
+            if (!TextUtils.isEmpty(sBuffer.toString())) {  
+                conTextView.setText(sBuffer.toString());  
+            }  
+        }  
+  
+    }  
+}  
+HttpUtils.java
+[java] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+package com.example.photocrop;  
+  
+import org.apache.http.HttpVersion;  
+import org.apache.http.client.HttpClient;  
+import org.apache.http.conn.ClientConnectionManager;  
+import org.apache.http.conn.scheme.PlainSocketFactory;  
+import org.apache.http.conn.scheme.Scheme;  
+import org.apache.http.conn.scheme.SchemeRegistry;  
+import org.apache.http.conn.ssl.SSLSocketFactory;  
+import org.apache.http.impl.client.DefaultHttpClient;  
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;  
+import org.apache.http.params.BasicHttpParams;  
+import org.apache.http.params.HttpProtocolParams;  
+import org.apache.http.protocol.HTTP;  
+  
+import android.content.Context;  
+  
+  
+public class HttpUtils {  
+    public static HttpClient getHttpsClient() {  
+        BasicHttpParams params = new BasicHttpParams();  
+        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);  
+        HttpProtocolParams.setContentCharset(params, HTTP.DEFAULT_CONTENT_CHARSET);  
+        HttpProtocolParams.setUseExpectContinue(params, true);  
+          
+        SchemeRegistry schReg = new SchemeRegistry();  
+        schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));  
+        schReg.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));  
+          
+        ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);  
+          
+        return new DefaultHttpClient(connMgr, params);  
+    }  
+      
+    public static HttpClient getCustomClient() {  
+        BasicHttpParams params = new BasicHttpParams();  
+        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);  
+        HttpProtocolParams.setContentCharset(params, HTTP.DEFAULT_CONTENT_CHARSET);  
+        HttpProtocolParams.setUseExpectContinue(params, true);  
+          
+        SchemeRegistry schReg = new SchemeRegistry();  
+        schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));  
+        schReg.register(new Scheme("https", MySSLSocketFactory.getSocketFactory(), 443));  
+          
+        ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);  
+          
+        return new DefaultHttpClient(connMgr, params);  
+    }  
+      
+    public static HttpClient getSpecialKeyStoreClient(Context context) {  
+        BasicHttpParams params = new BasicHttpParams();  
+        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);  
+        HttpProtocolParams.setContentCharset(params, HTTP.DEFAULT_CONTENT_CHARSET);  
+        HttpProtocolParams.setUseExpectContinue(params, true);  
+          
+        SchemeRegistry schReg = new SchemeRegistry();  
+        schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));  
+        schReg.register(new Scheme("https", CustomerSocketFactory.getSocketFactory(context), 443));  
+          
+        ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);  
+          
+        return new DefaultHttpClient(connMgr, params);  
+    }  
+}  
+activity_main.xml
+[html] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"  
+    xmlns:tools="http://schemas.android.com/tools"  
+    android:layout_width="match_parent"  
+    android:layout_height="match_parent"  
+    android:orientation="vertical">  
+  
+    <Button  
+        android:id="@+id/create_https_button"  
+        android:layout_width="match_parent"  
+        android:layout_height="wrap_content"  
+        android:text="@string/hello_world"  
+        android:textSize="16sp" />  
+  
+    <TextView  
+        android:id="@+id/content_textview"  
+        android:layout_width="match_parent"  
+        android:layout_height="wrap_content"  
+        android:gravity="center"  
+        android:textSize="16sp" />  
+  
+</LinearLayout>  
+Android使用DefaultHttpClient建立HTTPS连接，关键需要加入对HTTPS的支持：
+[java] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+schReg.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));  
+加入对HTTPS的支持，就可以有效的建立HTTPS连接了，例如“https://www.google.com.hk”了，但是访问自己基于Nginx搭建的HTTPS服务器却不行，因为它使用了不被系统承认的自定义证书，会报出如下问题：No peer certificate。
+使用自定义证书并忽略验证的HTTPS连接方式
+解决证书不被系统承认的方法，就是跳过系统校验。要跳过系统校验，就不能再使用系统标准的SSL SocketFactory了，需要自定义一个。然后为了在这个自定义SSL SocketFactory里跳过校验，还需要自定义一个TrustManager，在其中忽略所有校验，即TrustAll。
+MySSLSocketFactory.java实现代码如下：
+[plain] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+package com.example.photocrop;  
+  
+import java.io.IOException;  
+import java.net.Socket;  
+import java.net.UnknownHostException;  
+import java.security.KeyManagementException;  
+import java.security.KeyStore;  
+import java.security.KeyStoreException;  
+import java.security.NoSuchAlgorithmException;  
+import java.security.UnrecoverableKeyException;  
+import java.security.cert.CertificateException;  
+import java.security.cert.X509Certificate;  
+  
+import javax.net.ssl.SSLContext;  
+import javax.net.ssl.TrustManager;  
+import javax.net.ssl.X509TrustManager;  
+import org.apache.http.conn.ssl.SSLSocketFactory;  
+  
+public class MySSLSocketFactory extends SSLSocketFactory {  
+    SSLContext sslContext = SSLContext.getInstance("TLS");  
+  
+    public MySSLSocketFactory(KeyStore truststore)  
+            throws NoSuchAlgorithmException, KeyManagementException,  
+            KeyStoreException, UnrecoverableKeyException {  
+        super(truststore);  
+        TrustManager tm = new X509TrustManager() {  
+  
+            @Override  
+            public X509Certificate[] getAcceptedIssuers() {  
+                return null;  
+            }  
+  
+            @Override  
+            public void checkServerTrusted(X509Certificate[] chain,  
+                    String authType) throws CertificateException {  
+  
+            }  
+  
+            @Override  
+            public void checkClientTrusted(X509Certificate[] chain,  
+                    String authType) throws CertificateException {  
+  
+            }  
+        };  
+  
+        sslContext.init(null, new TrustManager[] { tm }, null);  
+    }  
+  
+    @Override  
+    public Socket createSocket() throws IOException {  
+        return sslContext.getSocketFactory().createSocket();  
+    }  
+  
+    @Override  
+    public Socket createSocket(Socket socket, String host, int port,  
+            boolean autoClose) throws IOException, UnknownHostException {  
+        return sslContext.getSocketFactory().createSocket(socket, host, port,  
+                autoClose);  
+    }  
+  
+    public static SSLSocketFactory getSocketFactory() {  
+        try {  
+            KeyStore trustStore = KeyStore.getInstance(KeyStore  
+                    .getDefaultType());  
+            trustStore.load(null, null);  
+            SSLSocketFactory factory = new MySSLSocketFactory(trustStore);  
+            return factory;  
+        } catch (Exception e) {  
+            e.getMessage();  
+            return null;  
+        }  
+    }  
+}  
+同时，需要修改DefaultHttpClient的register方法，改为自己构建的sslsocket：
+[plain] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+public static HttpClient getCustomClient() {  
+    BasicHttpParams params = new BasicHttpParams();  
+    HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);  
+    HttpProtocolParams.setContentCharset(params, HTTP.DEFAULT_CONTENT_CHARSET);  
+    HttpProtocolParams.setUseExpectContinue(params, true);  
+      
+    SchemeRegistry schReg = new SchemeRegistry();  
+    schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));  
+    schReg.register(new Scheme("https", MySSLSocketFactory.getSocketFactory(), 443));  
+      
+    ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);  
+      
+    return new DefaultHttpClient(connMgr, params);  
+}  
+这样就可以成功的访问自己构建的基于Nginx的HTTPS虚拟站点了。
+缺陷：
+不过，虽然这个方案使用了HTTPS，客户端和服务器端的通信内容得到了加密，嗅探程序无法得到传输的内容，但是无法抵挡“中间人攻击”。例如，在内网配置一个DNS，把目标服务器域名解析到本地的一个地址，然后在这个地址上使用一个中间服务器作为代理，它使用一个假的证书与客户端通讯，然后再由这个代理服务器作为客户端连接到实际的服务器，用真的证书与服务器通讯。这样所有的通讯内容都会经过这个代理，而客户端不会感知，这是由于客户端不校验服务器公钥证书导致的。
+
+使用自定义证书建立HTTPS连接
+为了防止上面方案可能导致的“中间人攻击”，我们可以下载服务器端公钥证书，然后将公钥证书编译到Android应用中，由应用自己来验证证书。
+生成KeyStore
+要验证自定义证书，首先要把证书编译到应用中，这需要使用keytool工具生产KeyStore文件。这里的证书就是指目标服务器的公钥，可以从web服务器配置的.crt文件或.pem文件获得。同时，你需要配置bouncycastle，我下载的是bcprov-jdk16-145.jar，至于配置大家自行google就好了。
+[plain] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+keytool -importcert -v -trustcacerts -alias example -file www.example.com.crt -keystore example.bks -storetype BKS -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath /home/wzy/Downloads/java/jdk1.7.0_60/jre/lib/ext/bcprov-jdk16-145.jar -storepass pw123456  
+运行后将显示证书内容并提示你是否确认，输入Y回车即可。
+生产KeyStore文件成功后，将其放在app应用的res/raw目录下即可。
+使用自定义KeyStore实现连接
+思路和TrushAll差不多，也是需要一个自定义的SSLSokcetFactory，不过因为还需要验证证书，因此不需要自定义TrustManager了。
+[java] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+package com.example.photocrop;  
+  
+import java.io.IOException;  
+import java.io.InputStream;  
+import java.security.KeyManagementException;  
+import java.security.KeyStore;  
+import java.security.KeyStoreException;  
+import java.security.NoSuchAlgorithmException;  
+import java.security.UnrecoverableKeyException;  
+  
+import org.apache.http.conn.ssl.SSLSocketFactory;  
+  
+import android.content.Context;  
+  
+public class CustomerSocketFactory extends SSLSocketFactory {  
+  
+    private static final String PASSWD = "pw123456";  
+  
+    public CustomerSocketFactory(KeyStore truststore)  
+            throws NoSuchAlgorithmException, KeyManagementException,  
+            KeyStoreException, UnrecoverableKeyException {  
+        super(truststore);  
+    }  
+  
+    public static SSLSocketFactory getSocketFactory(Context context) {  
+        InputStream input = null;  
+        try {  
+            input = context.getResources().openRawResource(R.raw.example);  
+            KeyStore trustStore = KeyStore.getInstance(KeyStore  
+                    .getDefaultType());  
+  
+            trustStore.load(input, PASSWD.toCharArray());  
+  
+            SSLSocketFactory factory = new CustomerSocketFactory(trustStore);  
+  
+            return factory;  
+        } catch (Exception e) {  
+            e.printStackTrace();  
+            return null;  
+        } finally {  
+            if (input != null) {  
+                try {  
+                    input.close();  
+                } catch (IOException e) {  
+                    e.printStackTrace();  
+                }  
+                input = null;  
+            }  
+        }  
+    }  
+  
+}  
+同时，需要修改DefaultHttpClient的register方法，改为自己构建的sslsocket：
+[java] view plaincopyprint?在CODE上查看代码片派生到我的代码片
+public static HttpClient getSpecialKeyStoreClient(Context context) {  
+    BasicHttpParams params = new BasicHttpParams();  
+    HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);  
+    HttpProtocolParams.setContentCharset(params, HTTP.DEFAULT_CONTENT_CHARSET);  
+    HttpProtocolParams.setUseExpectContinue(params, true);  
+      
+    SchemeRegistry schReg = new SchemeRegistry();  
+    schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));  
+    schReg.register(new Scheme("https", CustomerSocketFactory.getSocketFactory(context), 443));  
+      
+    ClientConnectionManager connMgr = new ThreadSafeClientConnManager(params, schReg);  
+      
+    return new DefaultHttpClient(connMgr, params);  

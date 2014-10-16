@@ -42,13 +42,11 @@ public class HTTPSTestActivity extends Activity {
 		TestFileReader tfr = new TestFileReader();
 		TransmitData transDataThread = new TransmitData();
 		// TransmitData2 transDataThread = new TransmitData2();
-		long t1 = Calendar.getInstance().getTimeInMillis();
 		// transDataThread.execute(Utilities.SMALL_FILENAME,
 		// tfr.rtnString(Utilities.SMALL_PATH));
-		transDataThread.execute(Utilities.LARGE_FILENAME, tfr.rtnString(Utilities.LARGE_PATH));
-		long t2 = Calendar.getInstance().getTimeInMillis();
-		TextView tvHttps = (TextView) findViewById(R.id.tvHttps);
-		tvHttps.setText(String.valueOf(t2 - t1));
+		// transDataThread.execute(Utilities.LARGE_FILENAME,
+		// tfr.rtnString(Utilities.LARGE_PATH));
+		transDataThread.execute(Utilities.XL_FILENAME, tfr.rtnString(Utilities.XL_PATH));
 	}
 
 	@Override
@@ -87,33 +85,44 @@ public class HTTPSTestActivity extends Activity {
 		}
 	}
 
-	private class TransmitData extends AsyncTask<String, Void, Boolean> {
+	private class TransmitData extends AsyncTask<String, Void, Long> {
 
 		@Override
-		protected Boolean doInBackground(String... strings) {
+		protected void onPostExecute(Long result) {
+			TextView tvHttps = (TextView) findViewById(R.id.tvHttps);
+			tvHttps.setText("Round Time: " + String.valueOf(result));
+		}
+
+		@Override
+		protected Long doInBackground(String... strings) {
 
 			String fileName = strings[0];
 			String dataToSend = strings[1];
 
 			DefaultHttpClient client = (DefaultHttpClient) WebClientDevWrapper.getNewHttpClient();
+			// DefaultHttpClient client = (DefaultHttpClient)
+			// WebClientDevWrapper.getSpecialKeyStoreClient(getApplicationContext());
+			// DefaultHttpClient client = (DefaultHttpClient)
+			// WebClientDevWrapper.getHttpsClient();
 
 			HttpPost request = new HttpPost(Utilities.HTTPS_ADDRESS);
 			List<NameValuePair> params = new ArrayList<NameValuePair>();
 			params.add(new BasicNameValuePair("file_name", fileName));
 			params.add(new BasicNameValuePair("data", dataToSend));
 			try {
-
+				long t1 = Calendar.getInstance().getTimeInMillis();
 				request.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
 				// HttpResponse response = new
 				// DefaultHttpClient().execute(request);
 				HttpResponse response = client.execute(request);
 				// String result = EntityUtils.toString(response.getEntity());
-				Log.d(Utilities.TAG_HTTPS,
-						String.valueOf(response.getStatusLine().getStatusCode()));
-				return true;
+				Log.d(Utilities.TAG_HTTPS, String.valueOf(response.getStatusLine().getStatusCode()));
+				long t2 = Calendar.getInstance().getTimeInMillis();
+				Log.d(Utilities.TAG_HTTPS, "Round Time: " + (t2 - t1));
+				return t2 - t1;
 			} catch (Exception e) {
 				e.printStackTrace();
-				return false;
+				return (long) -1;
 			}
 		}
 	}

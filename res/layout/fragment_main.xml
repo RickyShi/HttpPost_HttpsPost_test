@@ -30,5 +30,13 @@
         android:text="@string/https"
         android:onClick="redirectToHttps" />
     
+    <Button 
+        android:id="@+id/httpsFull"
+        android:layout_below="@+id/https"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:text="@string/httpsFull"
+        android:onClick="redirectToFullHttps" />
+    
 
 </RelativeLayout>
