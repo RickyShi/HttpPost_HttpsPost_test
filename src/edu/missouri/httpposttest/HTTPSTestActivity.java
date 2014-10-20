@@ -119,6 +119,7 @@ public class HTTPSTestActivity extends Activity {
 				Log.d(Utilities.TAG_HTTPS, String.valueOf(response.getStatusLine().getStatusCode()));
 				long t2 = Calendar.getInstance().getTimeInMillis();
 				Log.d(Utilities.TAG_HTTPS, "Round Time: " + (t2 - t1));
+				Utilities.writeToFile("Https.txt", String.valueOf(t2 - t1));
 				return t2 - t1;
 			} catch (Exception e) {
 				e.printStackTrace();

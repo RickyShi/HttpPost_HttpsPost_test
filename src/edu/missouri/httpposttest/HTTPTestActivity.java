@@ -109,6 +109,7 @@ public class HTTPTestActivity extends Activity {
 				Log.d(Utilities.TAG_HTTP, String.valueOf(response.getStatusLine().getStatusCode()));
 				long t2 = Calendar.getInstance().getTimeInMillis();
 				Log.d(Utilities.TAG_HTTP, "Round Time: " + (t2 - t1));
+				Utilities.writeToFile("Http.txt", String.valueOf(t2 - t1));
 				// if (response.getStatusLine().getStatusCode() == 200) {
 				// String result = EntityUtils.toString(response.getEntity());
 //					Log.d(Utilities.TAG_HTTP, result);

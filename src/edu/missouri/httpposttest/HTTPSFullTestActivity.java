@@ -117,6 +117,7 @@ public class HTTPSFullTestActivity extends Activity {
 				Log.d(Utilities.TAG_HTTPS_FULL, String.valueOf(response.getStatusLine().getStatusCode()));
 				long t2 = Calendar.getInstance().getTimeInMillis();
 				Log.d(Utilities.TAG_HTTPS_FULL, "Round Time: " + (t2 - t1));
+				Utilities.writeToFile("HttpsFull.txt", String.valueOf(t2 - t1));
 				return t2 - t1;
 			} catch (Exception e) {
 				e.printStackTrace();
